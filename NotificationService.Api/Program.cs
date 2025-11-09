@@ -1,0 +1,62 @@
+using NotificationService.Application.Interfaces;
+using NotificationService.Application.Services;
+using NotificationService.Domain.Repositories;
+using NotificationService.Infrastructure.Repositories;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// ---------------------------------------------------------------------
+// 1️⃣  Add services to the container
+// ---------------------------------------------------------------------
+
+// Enable controllers (for attribute routing)
+builder.Services.AddControllers();
+
+// Add OpenAPI (Swagger)
+builder.Services.AddOpenApi();
+
+// Register Dapper context (singleton since it only manages connection strings)
+// builder.Services.AddSingleton<DapperContext>();
+
+// Register repositories (infrastructure layer)
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+
+// Register application services (application layer)
+builder.Services.AddScoped<INotificationService, NotificationService.Application.Services.NotificationService>();
+
+// Optional: CORS (if calling from frontend)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader());
+});
+
+var app = builder.Build();
+
+// ---------------------------------------------------------------------
+// 2️⃣  Configure the HTTP request pipeline
+// ---------------------------------------------------------------------
+
+if (app.Environment.IsDevelopment())
+{
+    // Enable Swagger UI
+    app.MapOpenApi(); // new .NET 9 style
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "Business Service API v1");
+        options.RoutePrefix = string.Empty; // Swagger at root URL
+    });
+}
+
+// Optional: Global exception handler middleware (recommended)
+// app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+app.UseHttpsRedirection();
+app.UseCors("AllowAll");
+
+// Enable attribute-routed controllers
+app.MapControllers();
+
+app.Run();
