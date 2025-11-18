@@ -14,4 +14,16 @@ public record CreateNotificationDto(
     string NotificationStatus,
     string? MessageHeader,
     string? MessageBody
-    );
+);
+
+//  Request DTOs for review notifications
+public record ReviewNotificationRequest(
+    string Email, 
+    Guid ReviewId
+);
+
+public record ReviewRejectedNotificationRequest(
+    string Email, 
+    Guid ReviewId, 
+    List<string> Reasons
+);

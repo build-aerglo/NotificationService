@@ -23,6 +23,6 @@ public class NotificationService(
         
         // validate 
         var notificationCreated = await GetByIdAsync(notif.Id);
-        return notificationCreated != null ? throw new NotificationNotFoundException("Error creating notification.") : notif;
+        return notificationCreated ?? throw new NotificationNotFoundException("Error creating notification.");
     }
 }
