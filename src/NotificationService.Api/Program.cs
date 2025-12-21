@@ -45,7 +45,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi(); // new .NET 9 style
     app.UseSwaggerUI(options =>
     {
-        options.SwaggerEndpoint("/openapi/v1.json", "Business Service API v1");
+        options.SwaggerEndpoint("/openapi/v1.json", "Notification Service API v1");
         options.RoutePrefix = string.Empty; // Swagger at root URL
     });
 }
