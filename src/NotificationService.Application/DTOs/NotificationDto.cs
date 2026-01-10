@@ -23,7 +23,19 @@ public record ReviewNotificationRequest(
 );
 
 public record ReviewRejectedNotificationRequest(
-    string Email, 
-    Guid ReviewId, 
+    string Email,
+    Guid ReviewId,
     List<string> Reasons
+);
+
+// Request DTO for forget password email notification
+public record ForgetPasswordNotificationRequest(
+    string Email,
+    string Code
+);
+
+// Request DTO for forget password SMS notification
+public record ForgetPasswordSmsRequest(
+    string PhoneNumber,
+    string Code
 );
