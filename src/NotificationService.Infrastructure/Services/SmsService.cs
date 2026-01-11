@@ -1,27 +1,23 @@
 using NotificationService.Application.Interfaces;
-using NotificationService.Infrastructure.Configuration;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
-using System.Net.Http;
 using System.Text;
-using System.Text.Json;
 
 namespace NotificationService.Infrastructure.Services;
 
 public class SmsService : ISmsService
 {
-    private readonly SmsSettings _smsSettings;
+    private readonly INotificationParamsService _notificationParamsService;
     private readonly ITemplateEngine _templateEngine;
     private readonly ILogger<SmsService> _logger;
     private readonly HttpClient _httpClient;
 
     public SmsService(
-        IOptions<SmsSettings> smsSettings,
+        INotificationParamsService notificationParamsService,
         ITemplateEngine templateEngine,
         ILogger<SmsService> logger,
         HttpClient httpClient)
     {
-        _smsSettings = smsSettings?.Value ?? throw new ArgumentNullException(nameof(smsSettings));
+        _notificationParamsService = notificationParamsService ?? throw new ArgumentNullException(nameof(notificationParamsService));
         _templateEngine = templateEngine ?? throw new ArgumentNullException(nameof(templateEngine));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
@@ -31,12 +27,21 @@ public class SmsService : ISmsService
     {
         try
         {
-            if (_smsSettings.Provider.Equals("Twilio", StringComparison.OrdinalIgnoreCase))
+            // Get SMS settings from database (with caching)
+            var smsSettings = await _notificationParamsService.GetNotificationParamsAsync();
+
+            if (smsSettings == null)
             {
-                return await SendViaTwilioAsync(phoneNumber, message);
+                _logger.LogError("SMS settings not found in database");
+                return false;
             }
 
-            _logger.LogWarning("SMS provider {Provider} is not supported", _smsSettings.Provider);
+            if (smsSettings.SmsProvider.Equals("Twilio", StringComparison.OrdinalIgnoreCase))
+            {
+                return await SendViaTwilioAsync(phoneNumber, message, smsSettings);
+            }
+
+            _logger.LogWarning("SMS provider {Provider} is not supported", smsSettings.SmsProvider);
             return false;
         }
         catch (Exception ex)
@@ -65,16 +70,16 @@ public class SmsService : ISmsService
         }
     }
 
-    private async Task<bool> SendViaTwilioAsync(string phoneNumber, string message)
+    private async Task<bool> SendViaTwilioAsync(string phoneNumber, string message, Domain.Entities.NotificationParams smsSettings)
     {
         try
         {
-            var url = $"https://api.twilio.com/2010-04-01/Accounts/{_smsSettings.AccountSid}/Messages.json";
+            var url = $"https://api.twilio.com/2010-04-01/Accounts/{smsSettings.SmsAccountSid}/Messages.json";
 
             var formData = new Dictionary<string, string>
             {
                 ["To"] = phoneNumber,
-                ["From"] = _smsSettings.FromPhoneNumber,
+                ["From"] = smsSettings.SmsFromNumber,
                 ["Body"] = message
             };
 
@@ -85,7 +90,7 @@ public class SmsService : ISmsService
 
             // Add basic authentication
             var authToken = Convert.ToBase64String(
-                Encoding.ASCII.GetBytes($"{_smsSettings.AccountSid}:{_smsSettings.AuthToken}"));
+                Encoding.ASCII.GetBytes($"{smsSettings.SmsAccountSid}:{smsSettings.SmsAuthToken}"));
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", authToken);
 
             var response = await _httpClient.SendAsync(request);

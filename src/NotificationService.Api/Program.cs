@@ -2,7 +2,6 @@ using NotificationService.Application.Interfaces;
 using NotificationService.Application.Services;
 using NotificationService.Domain.Repositories;
 using NotificationService.Infrastructure.Repositories;
-using NotificationService.Infrastructure.Configuration;
 using NotificationService.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -30,9 +29,6 @@ builder.Services.AddScoped<INotificationParamsRepository, NotificationParamsRepo
 // Register application services (application layer)
 builder.Services.AddScoped<INotificationService, NotificationService.Application.Services.NotificationService>();
 builder.Services.AddScoped<INotificationParamsService, NotificationParamsService>();
-
-// Configure SMS settings
-builder.Services.Configure<SmsSettings>(builder.Configuration.GetSection("SmsSettings"));
 
 // Register Template Engine (singleton with templates path from configuration)
 var templatesPath = builder.Configuration.GetValue<string>("TemplatesPath") ?? "Templates";

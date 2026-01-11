@@ -28,6 +28,10 @@ public class NotificationParamsRepository : INotificationParamsRepository
                 from_email,
                 from_name,
                 enable_ssl,
+                sms_provider,
+                sms_account_sid,
+                sms_auth_token,
+                sms_from_number,
                 created_at,
                 updated_at
             FROM notification_params

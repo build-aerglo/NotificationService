@@ -1,11 +1,10 @@
 using NUnit.Framework;
 using Moq;
 using Moq.Protected;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 using NotificationService.Infrastructure.Services;
-using NotificationService.Infrastructure.Configuration;
 using NotificationService.Application.Interfaces;
+using NotificationService.Domain.Entities;
 using System.Net;
 
 namespace NotificationService.Infrastructure.Tests.Services;
@@ -13,26 +12,38 @@ namespace NotificationService.Infrastructure.Tests.Services;
 [TestFixture]
 public class SmsServiceTests
 {
-    private Mock<IOptions<SmsSettings>> _mockSmsSettings = null!;
+    private Mock<INotificationParamsService> _mockNotificationParamsService = null!;
     private Mock<ITemplateEngine> _mockTemplateEngine = null!;
     private Mock<ILogger<SmsService>> _mockLogger = null!;
     private Mock<HttpMessageHandler> _mockHttpMessageHandler = null!;
     private HttpClient _httpClient = null!;
-    private SmsSettings _smsSettings = null!;
+    private NotificationParams _notificationParams = null!;
 
     [SetUp]
     public void Setup()
     {
-        _smsSettings = new SmsSettings
+        _notificationParams = new NotificationParams
         {
-            Provider = "Twilio",
-            AccountSid = "test_account_sid",
-            AuthToken = "test_auth_token",
-            FromPhoneNumber = "+1234567890"
+            Id = 1,
+            SmtpHost = "smtp.test.com",
+            SmtpPort = 587,
+            SmtpUser = "test@test.com",
+            SmtpPassword = "password",
+            EnableSsl = true,
+            FromEmail = "noreply@test.com",
+            FromName = "Test Service",
+            SmsProvider = "Twilio",
+            SmsAccountSid = "test_account_sid",
+            SmsAuthToken = "test_auth_token",
+            SmsFromNumber = "+1234567890",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
-        _mockSmsSettings = new Mock<IOptions<SmsSettings>>();
-        _mockSmsSettings.Setup(x => x.Value).Returns(_smsSettings);
+        _mockNotificationParamsService = new Mock<INotificationParamsService>();
+        _mockNotificationParamsService
+            .Setup(x => x.GetNotificationParamsAsync())
+            .ReturnsAsync(_notificationParams);
 
         _mockTemplateEngine = new Mock<ITemplateEngine>();
         _mockLogger = new Mock<ILogger<SmsService>>();
@@ -48,7 +59,7 @@ public class SmsServiceTests
     }
 
     [Test]
-    public void Constructor_WithNullSmsSettings_ThrowsArgumentNullException()
+    public void Constructor_WithNullNotificationParamsService_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() =>
             new SmsService(null!, _mockTemplateEngine.Object, _mockLogger.Object, _httpClient));
@@ -58,21 +69,21 @@ public class SmsServiceTests
     public void Constructor_WithNullTemplateEngine_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            new SmsService(_mockSmsSettings.Object, null!, _mockLogger.Object, _httpClient));
+            new SmsService(_mockNotificationParamsService.Object, null!, _mockLogger.Object, _httpClient));
     }
 
     [Test]
     public void Constructor_WithNullLogger_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            new SmsService(_mockSmsSettings.Object, _mockTemplateEngine.Object, null!, _httpClient));
+            new SmsService(_mockNotificationParamsService.Object, _mockTemplateEngine.Object, null!, _httpClient));
     }
 
     [Test]
     public void Constructor_WithNullHttpClient_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            new SmsService(_mockSmsSettings.Object, _mockTemplateEngine.Object, _mockLogger.Object, null!));
+            new SmsService(_mockNotificationParamsService.Object, _mockTemplateEngine.Object, _mockLogger.Object, null!));
     }
 
     [Test]
@@ -92,7 +103,7 @@ public class SmsServiceTests
                 Content = new StringContent("{\"sid\":\"test_sid\"}")
             });
 
-        var service = new SmsService(_mockSmsSettings.Object, _mockTemplateEngine.Object, _mockLogger.Object, _httpClient);
+        var service = new SmsService(_mockNotificationParamsService.Object, _mockTemplateEngine.Object, _mockLogger.Object, _httpClient);
 
         var result = await service.SendSmsAsync(phoneNumber, message);
 
@@ -116,7 +127,7 @@ public class SmsServiceTests
                 Content = new StringContent("Error")
             });
 
-        var service = new SmsService(_mockSmsSettings.Object, _mockTemplateEngine.Object, _mockLogger.Object, _httpClient);
+        var service = new SmsService(_mockNotificationParamsService.Object, _mockTemplateEngine.Object, _mockLogger.Object, _httpClient);
 
         var result = await service.SendSmsAsync(phoneNumber, message);
 
@@ -126,9 +137,9 @@ public class SmsServiceTests
     [Test]
     public async Task SendSmsAsync_WithUnsupportedProvider_ReturnsFalse()
     {
-        _smsSettings.Provider = "UnsupportedProvider";
+        _notificationParams.SmsProvider = "UnsupportedProvider";
 
-        var service = new SmsService(_mockSmsSettings.Object, _mockTemplateEngine.Object, _mockLogger.Object, _httpClient);
+        var service = new SmsService(_mockNotificationParamsService.Object, _mockTemplateEngine.Object, _mockLogger.Object, _httpClient);
 
         var result = await service.SendSmsAsync("+1987654321", "Test message");
 
@@ -158,7 +169,7 @@ public class SmsServiceTests
                 Content = new StringContent("{\"sid\":\"test_sid\"}")
             });
 
-        var service = new SmsService(_mockSmsSettings.Object, _mockTemplateEngine.Object, _mockLogger.Object, _httpClient);
+        var service = new SmsService(_mockNotificationParamsService.Object, _mockTemplateEngine.Object, _mockLogger.Object, _httpClient);
 
         await service.SendForgetPasswordSmsAsync(phoneNumber, code);
 
@@ -178,7 +189,7 @@ public class SmsServiceTests
             .Setup(x => x.RenderSmsTemplateAsync("forget_password", It.IsAny<Dictionary<string, string>>()))
             .ThrowsAsync(new Exception("Template error"));
 
-        var service = new SmsService(_mockSmsSettings.Object, _mockTemplateEngine.Object, _mockLogger.Object, _httpClient);
+        var service = new SmsService(_mockNotificationParamsService.Object, _mockTemplateEngine.Object, _mockLogger.Object, _httpClient);
 
         var result = await service.SendForgetPasswordSmsAsync(phoneNumber, code);
 
@@ -195,7 +206,7 @@ public class SmsServiceTests
             .Setup(x => x.RenderSmsTemplateAsync("forget_password", It.IsAny<Dictionary<string, string>>()))
             .ThrowsAsync(new Exception("Template error"));
 
-        var service = new SmsService(_mockSmsSettings.Object, _mockTemplateEngine.Object, _mockLogger.Object, _httpClient);
+        var service = new SmsService(_mockNotificationParamsService.Object, _mockTemplateEngine.Object, _mockLogger.Object, _httpClient);
 
         await service.SendForgetPasswordSmsAsync(phoneNumber, code);
 
@@ -204,6 +215,41 @@ public class SmsServiceTests
                 LogLevel.Error,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, t) => true),
+                It.IsAny<Exception>(),
+                It.Is<Func<It.IsAnyType, Exception?, string>>((v, t) => true)),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task SendSmsAsync_WithNoNotificationParams_ReturnsFalse()
+    {
+        _mockNotificationParamsService
+            .Setup(x => x.GetNotificationParamsAsync())
+            .ReturnsAsync((NotificationParams?)null);
+
+        var service = new SmsService(_mockNotificationParamsService.Object, _mockTemplateEngine.Object, _mockLogger.Object, _httpClient);
+
+        var result = await service.SendSmsAsync("+1987654321", "Test message");
+
+        Assert.That(result, Is.False);
+    }
+
+    [Test]
+    public async Task SendSmsAsync_WithNoNotificationParams_LogsError()
+    {
+        _mockNotificationParamsService
+            .Setup(x => x.GetNotificationParamsAsync())
+            .ReturnsAsync((NotificationParams?)null);
+
+        var service = new SmsService(_mockNotificationParamsService.Object, _mockTemplateEngine.Object, _mockLogger.Object, _httpClient);
+
+        await service.SendSmsAsync("+1987654321", "Test message");
+
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("SMS settings not found")),
                 It.IsAny<Exception>(),
                 It.Is<Func<It.IsAnyType, Exception?, string>>((v, t) => true)),
             Times.Once);

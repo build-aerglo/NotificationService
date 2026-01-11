@@ -34,6 +34,10 @@ public class NotificationParamsServiceTests
             EnableSsl = true,
             FromEmail = "noreply@test.com",
             FromName = "Test Service",
+            SmsProvider = "Twilio",
+            SmsAccountSid = "test_account_sid",
+            SmsAuthToken = "test_auth_token",
+            SmsFromNumber = "+1234567890",
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };

@@ -5,7 +5,7 @@ using NotificationService.Application.Interfaces;
 namespace NotificationService.Api.Controllers;
 
 [ApiController]
-[Route("api/communication")]
+[Route("api")]
 public class CommunicationController : ControllerBase
 {
     private readonly IEmailService _emailService;
