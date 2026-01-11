@@ -1,6 +1,4 @@
 using NotificationService.Application.Interfaces;
-using NotificationService.Infrastructure.Configuration;
-using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Mail;
 using Microsoft.Extensions.Logging;
@@ -9,16 +7,16 @@ namespace NotificationService.Infrastructure.Services;
 
 public class EmailService : IEmailService
 {
-    private readonly SmtpSettings _smtpSettings;
+    private readonly INotificationParamsService _notificationParamsService;
     private readonly ITemplateEngine _templateEngine;
     private readonly ILogger<EmailService> _logger;
 
     public EmailService(
-        IOptions<SmtpSettings> smtpSettings,
+        INotificationParamsService notificationParamsService,
         ITemplateEngine templateEngine,
         ILogger<EmailService> logger)
     {
-        _smtpSettings = smtpSettings?.Value ?? throw new ArgumentNullException(nameof(smtpSettings));
+        _notificationParamsService = notificationParamsService ?? throw new ArgumentNullException(nameof(notificationParamsService));
         _templateEngine = templateEngine ?? throw new ArgumentNullException(nameof(templateEngine));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -27,15 +25,24 @@ public class EmailService : IEmailService
     {
         try
         {
-            using var smtpClient = new SmtpClient(_smtpSettings.Host, _smtpSettings.Port)
+            // Get SMTP settings from database (with caching)
+            var smtpSettings = await _notificationParamsService.GetNotificationParamsAsync();
+
+            if (smtpSettings == null)
             {
-                EnableSsl = _smtpSettings.EnableSsl,
-                Credentials = new NetworkCredential(_smtpSettings.Username, _smtpSettings.Password)
+                _logger.LogError("SMTP settings not found in database");
+                return false;
+            }
+
+            using var smtpClient = new SmtpClient(smtpSettings.SmtpHost, smtpSettings.SmtpPort)
+            {
+                EnableSsl = smtpSettings.EnableSsl,
+                Credentials = new NetworkCredential(smtpSettings.SmtpUser, smtpSettings.SmtpPassword)
             };
 
             var mailMessage = new MailMessage
             {
-                From = new MailAddress(_smtpSettings.FromEmail, _smtpSettings.FromName),
+                From = new MailAddress(smtpSettings.FromEmail, smtpSettings.FromName),
                 Subject = subject,
                 Body = htmlBody,
                 IsBodyHtml = true

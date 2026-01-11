@@ -17,17 +17,19 @@ builder.Services.AddControllers();
 // Add OpenAPI (Swagger)
 builder.Services.AddOpenApi();
 
+// Add Memory Cache for caching SMTP settings
+builder.Services.AddMemoryCache();
+
 // Register Dapper context (singleton since it only manages connection strings)
 // builder.Services.AddSingleton<DapperContext>();
 
 // Register repositories (infrastructure layer)
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+builder.Services.AddScoped<INotificationParamsRepository, NotificationParamsRepository>();
 
 // Register application services (application layer)
 builder.Services.AddScoped<INotificationService, NotificationService.Application.Services.NotificationService>();
-
-// Configure SMTP settings
-builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
+builder.Services.AddScoped<INotificationParamsService, NotificationParamsService>();
 
 // Configure SMS settings
 builder.Services.Configure<SmsSettings>(builder.Configuration.GetSection("SmsSettings"));

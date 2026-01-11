@@ -41,6 +41,12 @@ public class SmsServiceTests
         _httpClient = new HttpClient(_mockHttpMessageHandler.Object);
     }
 
+    [TearDown]
+    public void TearDown()
+    {
+        _httpClient?.Dispose();
+    }
+
     [Test]
     public void Constructor_WithNullSmsSettings_ThrowsArgumentNullException()
     {

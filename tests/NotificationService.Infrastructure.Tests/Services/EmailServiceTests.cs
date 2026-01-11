@@ -1,44 +1,48 @@
 using NUnit.Framework;
 using Moq;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 using NotificationService.Infrastructure.Services;
-using NotificationService.Infrastructure.Configuration;
 using NotificationService.Application.Interfaces;
+using NotificationService.Domain.Entities;
 
 namespace NotificationService.Infrastructure.Tests.Services;
 
 [TestFixture]
 public class EmailServiceTests
 {
-    private Mock<IOptions<SmtpSettings>> _mockSmtpSettings = null!;
+    private Mock<INotificationParamsService> _mockNotificationParamsService = null!;
     private Mock<ITemplateEngine> _mockTemplateEngine = null!;
     private Mock<ILogger<EmailService>> _mockLogger = null!;
-    private SmtpSettings _smtpSettings = null!;
+    private NotificationParams _notificationParams = null!;
 
     [SetUp]
     public void Setup()
     {
-        _smtpSettings = new SmtpSettings
+        _notificationParams = new NotificationParams
         {
-            Host = "smtp.test.com",
-            Port = 587,
-            Username = "test@test.com",
-            Password = "password",
+            Id = 1,
+            SmtpHost = "smtp.test.com",
+            SmtpPort = 587,
+            SmtpUser = "test@test.com",
+            SmtpPassword = "password",
             EnableSsl = true,
             FromEmail = "noreply@test.com",
-            FromName = "Test Service"
+            FromName = "Test Service",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
-        _mockSmtpSettings = new Mock<IOptions<SmtpSettings>>();
-        _mockSmtpSettings.Setup(x => x.Value).Returns(_smtpSettings);
+        _mockNotificationParamsService = new Mock<INotificationParamsService>();
+        _mockNotificationParamsService
+            .Setup(x => x.GetNotificationParamsAsync())
+            .ReturnsAsync(_notificationParams);
 
         _mockTemplateEngine = new Mock<ITemplateEngine>();
         _mockLogger = new Mock<ILogger<EmailService>>();
     }
 
     [Test]
-    public void Constructor_WithNullSmtpSettings_ThrowsArgumentNullException()
+    public void Constructor_WithNullNotificationParamsService_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() =>
             new EmailService(null!, _mockTemplateEngine.Object, _mockLogger.Object));
@@ -48,14 +52,14 @@ public class EmailServiceTests
     public void Constructor_WithNullTemplateEngine_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            new EmailService(_mockSmtpSettings.Object, null!, _mockLogger.Object));
+            new EmailService(_mockNotificationParamsService.Object, null!, _mockLogger.Object));
     }
 
     [Test]
     public void Constructor_WithNullLogger_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            new EmailService(_mockSmtpSettings.Object, _mockTemplateEngine.Object, null!));
+            new EmailService(_mockNotificationParamsService.Object, _mockTemplateEngine.Object, null!));
     }
 
     [Test]
@@ -70,7 +74,7 @@ public class EmailServiceTests
             .ReturnsAsync(expectedHtml)
             .Verifiable();
 
-        var service = new EmailService(_mockSmtpSettings.Object, _mockTemplateEngine.Object, _mockLogger.Object);
+        var service = new EmailService(_mockNotificationParamsService.Object, _mockTemplateEngine.Object, _mockLogger.Object);
 
         // Note: This will attempt to send email which will fail in test environment
         // We're primarily testing that template engine is called correctly
@@ -93,7 +97,7 @@ public class EmailServiceTests
             .Setup(x => x.RenderEmailTemplateAsync("forget_password", It.IsAny<Dictionary<string, string>>()))
             .ThrowsAsync(new Exception("Template error"));
 
-        var service = new EmailService(_mockSmtpSettings.Object, _mockTemplateEngine.Object, _mockLogger.Object);
+        var service = new EmailService(_mockNotificationParamsService.Object, _mockTemplateEngine.Object, _mockLogger.Object);
 
         var result = await service.SendForgetPasswordEmailAsync(email, code);
 
@@ -110,7 +114,7 @@ public class EmailServiceTests
             .Setup(x => x.RenderEmailTemplateAsync("forget_password", It.IsAny<Dictionary<string, string>>()))
             .ThrowsAsync(new Exception("Template error"));
 
-        var service = new EmailService(_mockSmtpSettings.Object, _mockTemplateEngine.Object, _mockLogger.Object);
+        var service = new EmailService(_mockNotificationParamsService.Object, _mockTemplateEngine.Object, _mockLogger.Object);
 
         await service.SendForgetPasswordEmailAsync(email, code);
 
@@ -119,6 +123,41 @@ public class EmailServiceTests
                 LogLevel.Error,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, t) => true),
+                It.IsAny<Exception>(),
+                It.Is<Func<It.IsAnyType, Exception?, string>>((v, t) => true)),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task SendEmailAsync_WithNoNotificationParams_ReturnsFalse()
+    {
+        _mockNotificationParamsService
+            .Setup(x => x.GetNotificationParamsAsync())
+            .ReturnsAsync((NotificationParams?)null);
+
+        var service = new EmailService(_mockNotificationParamsService.Object, _mockTemplateEngine.Object, _mockLogger.Object);
+
+        var result = await service.SendEmailAsync("test@test.com", "Test Subject", "<html>Test</html>");
+
+        Assert.That(result, Is.False);
+    }
+
+    [Test]
+    public async Task SendEmailAsync_WithNoNotificationParams_LogsError()
+    {
+        _mockNotificationParamsService
+            .Setup(x => x.GetNotificationParamsAsync())
+            .ReturnsAsync((NotificationParams?)null);
+
+        var service = new EmailService(_mockNotificationParamsService.Object, _mockTemplateEngine.Object, _mockLogger.Object);
+
+        await service.SendEmailAsync("test@test.com", "Test Subject", "<html>Test</html>");
+
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("SMTP settings not found")),
                 It.IsAny<Exception>(),
                 It.Is<Func<It.IsAnyType, Exception?, string>>((v, t) => true)),
             Times.Once);
