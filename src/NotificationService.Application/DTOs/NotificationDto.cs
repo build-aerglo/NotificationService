@@ -1,29 +1,25 @@
-﻿namespace NotificationService.Application.DTOs;
+﻿using System.Text.Json;
+
+namespace NotificationService.Application.DTOs;
 
 public record NotificationDto(
     Guid Id,
-    string NotificationType,
-    DateTime NotificationDate,
-    string NotificationStatus,
-    string? MessageHeader,
-    string? MessageBody);
-
-public record CreateNotificationDto(
-    string NotificationType,
-    DateTime NotificationDate,
-    string NotificationStatus,
-    string? MessageHeader,
-    string? MessageBody
+    string? Template,
+    string? Channel,
+    int RetryCount,
+    string? Recipient,
+    JsonDocument? Payload,
+    DateTime RequestedAt,
+    DateTime? DeliveredAt,
+    string Status
 );
 
-//  Request DTOs for review notifications
-public record ReviewNotificationRequest(
-    string Email, 
-    Guid ReviewId
-);
-
-public record ReviewRejectedNotificationRequest(
-    string Email, 
-    Guid ReviewId, 
-    List<string> Reasons
+public record NotificationResponseDto(
+    Guid Id,
+    string Template,
+    string Channel,
+    int RetryCount,
+    string Recipient,
+    object Payload,
+    DateTime RequestedAt
 );

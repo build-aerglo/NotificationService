@@ -1,26 +1,36 @@
-﻿namespace NotificationService.Domain.Entities;
+﻿using System.Text.Json;
+
+namespace NotificationService.Domain.Entities;
 
 public class Notification
 {
     public Guid Id { get; set; }
-    public string? MessageHeader { get; set; }
-    public string? MessageBody { get; set; }
-    public string NotificationType { get; set; } = default!;
-    public DateTime NotificationDate { get; set; }
-    public string NotificationStatus { get; set; } = default!;
-    
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-    
-    public Notification(string notificationType, string notificationStatus, string? messageBody, string? messageHeader, DateTime notificationDate)
-        {
-            Id = Guid.NewGuid();
-            MessageHeader = messageHeader;
-            MessageBody = messageBody;
-            NotificationType = notificationType;
-            NotificationDate = notificationDate;
-            NotificationStatus = notificationStatus;
-            CreatedAt = DateTime.UtcNow;
-            UpdatedAt = DateTime.UtcNow;
-        }
+    public string? Template { get; set; }
+    public string? Channel { get; set; }
+    public int RetryCount { get; set; } = 0;
+    public string? Recipient { get; set; }
+    public JsonDocument? Payload { get; set; }
+    public DateTime RequestedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? DeliveredAt { get; set; }
+    public string Status { get; set; } = "sent";
+
+    public Notification()
+    {
+        Id = Guid.NewGuid();
+        RequestedAt = DateTime.UtcNow;
+        Status = "sent";
+        RetryCount = 0;
+    }
+
+    public Notification(string template, string channel, string recipient, JsonDocument? payload)
+    {
+        Id = Guid.NewGuid();
+        Template = template;
+        Channel = channel;
+        Recipient = recipient;
+        Payload = payload;
+        RequestedAt = DateTime.UtcNow;
+        Status = "sent";
+        RetryCount = 0;
+    }
 }

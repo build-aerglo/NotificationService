@@ -2,6 +2,7 @@ using NotificationService.Application.Interfaces;
 using NotificationService.Application.Services;
 using NotificationService.Domain.Repositories;
 using NotificationService.Infrastructure.Repositories;
+using NotificationService.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,14 +16,14 @@ builder.Services.AddControllers();
 // Add OpenAPI (Swagger)
 builder.Services.AddOpenApi();
 
-// Register Dapper context (singleton since it only manages connection strings)
-// builder.Services.AddSingleton<DapperContext>();
-
 // Register repositories (infrastructure layer)
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 
 // Register application services (application layer)
 builder.Services.AddScoped<INotificationService, NotificationService.Application.Services.NotificationService>();
+
+// Register Azure Queue Service
+builder.Services.AddScoped<IQueueService, AzureQueueService>();
 
 // Optional: CORS (if calling from frontend)
 builder.Services.AddCors(options =>
