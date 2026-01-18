@@ -1,10 +1,10 @@
 ﻿using Moq;
-using NotificationService.Application.DTOs;
 using NotificationService.Application.Interfaces;
+using NotificationService.Application.Services;
 using NotificationService.Domain.Entities;
-using NotificationService.Domain.Exceptions;
 using NotificationService.Domain.Repositories;
 using NUnit.Framework;
+using System.Text.Json;
 
 namespace NotificationService.Application.Tests.Services;
 
@@ -12,206 +12,110 @@ namespace NotificationService.Application.Tests.Services;
 public class NotificationServiceTests
 {
     private Mock<INotificationRepository> _mockRepository = null!;
-    private Application.Services.NotificationService _service = null!;
+    private Mock<IQueueService> _mockQueueService = null!;
+    private NotificationService.Application.Services.NotificationService _service = null!;
 
     [SetUp]
     public void Setup()
     {
         _mockRepository = new Mock<INotificationRepository>();
-        _service = new Application.Services.NotificationService(_mockRepository.Object);
+        _mockQueueService = new Mock<IQueueService>();
+        _service = new NotificationService.Application.Services.NotificationService(
+            _mockRepository.Object,
+            _mockQueueService.Object);
     }
 
-    // ✅ ESSENTIAL: Create notification successfully
     [Test]
-    public async Task AddAsync_ValidNotification_ShouldReturnNotification()
+    public async Task ProcessNotificationAsync_ShouldCreateNotification_ForSms()
     {
         // Arrange
-        var dto = new CreateNotificationDto(
-            NotificationType: "REVIEW_APPROVED",
-            NotificationDate: DateTime.UtcNow,
-            NotificationStatus: "PENDING",
-            MessageHeader: "Your review is live!",
-            MessageBody: "Great news! Your review has been published."
-        );
-
-        var notification = new Notification(
-            dto.NotificationType,
-            dto.NotificationStatus,
-            dto.MessageBody,
-            dto.MessageHeader,
-            dto.NotificationDate
-        );
+        var template = "forget-password";
+        var channel = "sms";
+        var recipient = "+1234567890";
+        var payload = new { phone = recipient, code = "123456" };
 
         _mockRepository
             .Setup(r => r.AddAsync(It.IsAny<Notification>()))
             .Returns(Task.CompletedTask);
 
         _mockRepository
-            .Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
-            .ReturnsAsync(notification);
+            .Setup(r => r.UpdateStatusAsync(It.IsAny<Guid>(), "pushed", null))
+            .Returns(Task.CompletedTask);
+
+        _mockQueueService
+            .Setup(q => q.SendToQueueAsync(It.IsAny<DTOs.NotificationResponseDto>()))
+            .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _service.AddAsync(dto);
+        var result = await _service.ProcessNotificationAsync(template, channel, recipient, payload);
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        Assert.That(result.NotificationType, Is.EqualTo("REVIEW_APPROVED"));
-        Assert.That(result.MessageHeader, Is.EqualTo("Your review is live!"));
+        Assert.That(result!.Template, Is.EqualTo(template));
+        Assert.That(result.Channel, Is.EqualTo(channel));
+        Assert.That(result.Recipient, Is.EqualTo(recipient));
+
         _mockRepository.Verify(r => r.AddAsync(It.IsAny<Notification>()), Times.Once);
+        _mockQueueService.Verify(q => q.SendToQueueAsync(It.IsAny<DTOs.NotificationResponseDto>()), Times.Once);
+        _mockRepository.Verify(r => r.UpdateStatusAsync(It.IsAny<Guid>(), "pushed", null), Times.Once);
     }
 
-    // ✅ ESSENTIAL: Get notification by ID
     [Test]
-    public async Task GetByIdAsync_ExistingNotification_ShouldReturnNotification()
+    public async Task ProcessNotificationAsync_ShouldCreateNotification_ForEmail()
     {
         // Arrange
-        var notificationId = Guid.NewGuid();
-        var notification = new Notification(
-            "REVIEW_REJECTED",
-            "PENDING",
-            "Your review could not be published.",
-            "Review rejected",
-            DateTime.UtcNow
-        );
+        var template = "welcome";
+        var channel = "email";
+        var recipient = "test@example.com";
+        var payload = new { email = recipient, firstName = "John" };
 
         _mockRepository
-            .Setup(r => r.GetByIdAsync(notificationId))
-            .ReturnsAsync(notification);
+            .Setup(r => r.AddAsync(It.IsAny<Notification>()))
+            .Returns(Task.CompletedTask);
+
+        _mockRepository
+            .Setup(r => r.UpdateStatusAsync(It.IsAny<Guid>(), "pushed", null))
+            .Returns(Task.CompletedTask);
+
+        _mockQueueService
+            .Setup(q => q.SendToQueueAsync(It.IsAny<DTOs.NotificationResponseDto>()))
+            .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _service.GetByIdAsync(notificationId);
+        var result = await _service.ProcessNotificationAsync(template, channel, recipient, payload);
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        Assert.That(result.NotificationType, Is.EqualTo("REVIEW_REJECTED"));
+        Assert.That(result!.Template, Is.EqualTo(template));
+        Assert.That(result.Channel, Is.EqualTo(channel));
+        Assert.That(result.Recipient, Is.EqualTo(recipient));
+
+        _mockRepository.Verify(r => r.AddAsync(It.IsAny<Notification>()), Times.Once);
+        _mockQueueService.Verify(q => q.SendToQueueAsync(It.IsAny<DTOs.NotificationResponseDto>()), Times.Once);
+        _mockRepository.Verify(r => r.UpdateStatusAsync(It.IsAny<Guid>(), "pushed", null), Times.Once);
     }
 
-    // ✅ ESSENTIAL: Get notification throws when not found
     [Test]
-    public void GetByIdAsync_NonExistingNotification_ShouldThrowException()
+    public async Task ProcessNotificationAsync_ShouldNotPushToQueue_ForInApp()
     {
         // Arrange
-        var notificationId = Guid.NewGuid();
-        _mockRepository
-            .Setup(r => r.GetByIdAsync(notificationId))
-            .ReturnsAsync((Notification?)null);
-
-        // Act & Assert
-        var ex = Assert.ThrowsAsync<NotificationNotFoundException>(
-            async () => await _service.GetByIdAsync(notificationId)
-        );
-
-        Assert.That(ex!.Message, Does.Contain("Notification not found"));
-    }
-
-    // ✅ ESSENTIAL: Review approved notification
-    [Test]
-    public async Task AddAsync_ReviewApprovedNotification_ShouldSucceed()
-    {
-        // Arrange
-        var dto = new CreateNotificationDto(
-            NotificationType: "REVIEW_APPROVED",
-            NotificationDate: DateTime.UtcNow,
-            NotificationStatus: "PENDING",
-            MessageHeader: "Your review is live!",
-            MessageBody: "Great news! Your review has been published and is now visible to others."
-        );
-
-        var notification = new Notification(
-            dto.NotificationType,
-            dto.NotificationStatus,
-            dto.MessageBody,
-            dto.MessageHeader,
-            dto.NotificationDate
-        );
+        var template = "new-message";
+        var channel = "in-app";
+        var recipient = "user123";
+        var payload = new { id = recipient, message = "Hello", from = "user456" };
 
         _mockRepository
             .Setup(r => r.AddAsync(It.IsAny<Notification>()))
             .Returns(Task.CompletedTask);
 
-        _mockRepository
-            .Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
-            .ReturnsAsync(notification);
-
         // Act
-        var result = await _service.AddAsync(dto);
+        var result = await _service.ProcessNotificationAsync(template, channel, recipient, payload);
 
         // Assert
-        Assert.That(result.NotificationType, Is.EqualTo("REVIEW_APPROVED"));
-        Assert.That(result.MessageBody, Does.Contain("published"));
-    }
+        Assert.That(result, Is.Null);
 
-    // ✅ ESSENTIAL: Review rejected notification
-    [Test]
-    public async Task AddAsync_ReviewRejectedNotification_ShouldSucceed()
-    {
-        // Arrange
-        var dto = new CreateNotificationDto(
-            NotificationType: "REVIEW_REJECTED",
-            NotificationDate: DateTime.UtcNow,
-            NotificationStatus: "PENDING",
-            MessageHeader: "Review could not be published",
-            MessageBody: "Unfortunately, your review could not be published for the following reasons: Review too short."
-        );
-
-        var notification = new Notification(
-            dto.NotificationType,
-            dto.NotificationStatus,
-            dto.MessageBody,
-            dto.MessageHeader,
-            dto.NotificationDate
-        );
-
-        _mockRepository
-            .Setup(r => r.AddAsync(It.IsAny<Notification>()))
-            .Returns(Task.CompletedTask);
-
-        _mockRepository
-            .Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
-            .ReturnsAsync(notification);
-
-        // Act
-        var result = await _service.AddAsync(dto);
-
-        // Assert
-        Assert.That(result.NotificationType, Is.EqualTo("REVIEW_REJECTED"));
-        Assert.That(result.MessageBody, Does.Contain("could not be published"));
-    }
-
-    // ✅ ESSENTIAL: Review flagged notification
-    [Test]
-    public async Task AddAsync_ReviewFlaggedNotification_ShouldSucceed()
-    {
-        // Arrange
-        var dto = new CreateNotificationDto(
-            NotificationType: "REVIEW_FLAGGED",
-            NotificationDate: DateTime.UtcNow,
-            NotificationStatus: "PENDING",
-            MessageHeader: "Your review is under review",
-            MessageBody: "Your review is being reviewed by our moderation team."
-        );
-
-        var notification = new Notification(
-            dto.NotificationType,
-            dto.NotificationStatus,
-            dto.MessageBody,
-            dto.MessageHeader,
-            dto.NotificationDate
-        );
-
-        _mockRepository
-            .Setup(r => r.AddAsync(It.IsAny<Notification>()))
-            .Returns(Task.CompletedTask);
-
-        _mockRepository
-            .Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
-            .ReturnsAsync(notification);
-
-        // Act
-        var result = await _service.AddAsync(dto);
-
-        // Assert
-        Assert.That(result.NotificationType, Is.EqualTo("REVIEW_FLAGGED"));
-        Assert.That(result.MessageBody, Does.Contain("moderation team"));
+        _mockRepository.Verify(r => r.AddAsync(It.IsAny<Notification>()), Times.Once);
+        _mockQueueService.Verify(q => q.SendToQueueAsync(It.IsAny<DTOs.NotificationResponseDto>()), Times.Never);
+        _mockRepository.Verify(r => r.UpdateStatusAsync(It.IsAny<Guid>(), "pushed", null), Times.Never);
     }
 }
