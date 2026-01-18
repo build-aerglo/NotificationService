@@ -53,11 +53,6 @@ POST /api/sms/forget-password?phone={phone}&code={code}
 POST /api/sms/verification?phone={phone}&code={code}
 ```
 
-#### Order Confirmation
-```
-POST /api/sms/order-confirmation?phone={phone}&orderId={orderId}
-```
-
 ### Email Controller (`/api/email`)
 
 #### Forget Password
@@ -70,9 +65,9 @@ POST /api/email/forget-password?email={email}&code={code}
 POST /api/email/welcome?email={email}&firstName={firstName}
 ```
 
-#### Order Confirmation
+#### Verification
 ```
-POST /api/email/order-confirmation?email={email}&orderId={orderId}&orderTotal={orderTotal}
+POST /api/email/verification?email={email}&code={code}
 ```
 
 ### App Controller (`/api/app`)

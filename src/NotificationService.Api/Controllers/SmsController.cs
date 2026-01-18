@@ -59,25 +59,4 @@ public class SmsController : ControllerBase
             return StatusCode(500, new { error = "Failed to process notification" });
         }
     }
-
-    [HttpPost("order-confirmation")]
-    public async Task<IActionResult> OrderConfirmation([FromQuery] string phone, [FromQuery] string orderId)
-    {
-        try
-        {
-            if (string.IsNullOrEmpty(phone))
-                return BadRequest(new { error = "Phone is required" });
-
-            var payload = new { phone, orderId };
-            var response = await _notificationService.ProcessNotificationAsync(
-                "order-confirmation", "sms", phone, payload);
-
-            return Ok(response);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error processing order-confirmation SMS notification");
-            return StatusCode(500, new { error = "Failed to process notification" });
-        }
-    }
 }

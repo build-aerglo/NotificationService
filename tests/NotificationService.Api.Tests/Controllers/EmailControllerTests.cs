@@ -100,28 +100,27 @@ public class EmailControllerTests
     }
 
     [Test]
-    public async Task OrderConfirmation_ShouldReturnOk_WhenSuccessful()
+    public async Task Verification_ShouldReturnOk_WhenSuccessful()
     {
         // Arrange
         var email = "test@example.com";
-        var orderId = "ORDER123";
-        var orderTotal = "$99.99";
+        var code = "654321";
         var expectedResponse = new NotificationResponseDto(
             Guid.NewGuid(),
-            "order-confirmation",
+            "verification",
             "email",
             0,
             email,
-            new { email, orderId, orderTotal },
+            new { email, code },
             DateTime.UtcNow
         );
 
         _mockNotificationService
-            .Setup(s => s.ProcessNotificationAsync("order-confirmation", "email", email, It.IsAny<object>()))
+            .Setup(s => s.ProcessNotificationAsync("verification", "email", email, It.IsAny<object>()))
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await _controller.OrderConfirmation(email, orderId, orderTotal);
+        var result = await _controller.Verification(email, code);
 
         // Assert
         var okResult = result as OkObjectResult;
@@ -129,7 +128,7 @@ public class EmailControllerTests
         Assert.That(okResult!.StatusCode, Is.EqualTo(200));
 
         _mockNotificationService.Verify(s => s.ProcessNotificationAsync(
-            "order-confirmation", "email", email, It.IsAny<object>()), Times.Once);
+            "verification", "email", email, It.IsAny<object>()), Times.Once);
     }
 
     [Test]

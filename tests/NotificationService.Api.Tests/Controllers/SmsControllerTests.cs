@@ -100,38 +100,6 @@ public class SmsControllerTests
     }
 
     [Test]
-    public async Task OrderConfirmation_ShouldReturnOk_WhenSuccessful()
-    {
-        // Arrange
-        var phone = "+1234567890";
-        var orderId = "ORDER123";
-        var expectedResponse = new NotificationResponseDto(
-            Guid.NewGuid(),
-            "order-confirmation",
-            "sms",
-            0,
-            phone,
-            new { phone, orderId },
-            DateTime.UtcNow
-        );
-
-        _mockNotificationService
-            .Setup(s => s.ProcessNotificationAsync("order-confirmation", "sms", phone, It.IsAny<object>()))
-            .ReturnsAsync(expectedResponse);
-
-        // Act
-        var result = await _controller.OrderConfirmation(phone, orderId);
-
-        // Assert
-        var okResult = result as OkObjectResult;
-        Assert.That(okResult, Is.Not.Null);
-        Assert.That(okResult!.StatusCode, Is.EqualTo(200));
-
-        _mockNotificationService.Verify(s => s.ProcessNotificationAsync(
-            "order-confirmation", "sms", phone, It.IsAny<object>()), Times.Once);
-    }
-
-    [Test]
     public async Task ForgetPassword_ShouldHandleError_AndReturn500()
     {
         // Arrange

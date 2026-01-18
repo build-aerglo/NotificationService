@@ -60,23 +60,23 @@ public class EmailController : ControllerBase
         }
     }
 
-    [HttpPost("order-confirmation")]
-    public async Task<IActionResult> OrderConfirmation([FromQuery] string email, [FromQuery] string orderId, [FromQuery] string orderTotal)
+    [HttpPost("verification")]
+    public async Task<IActionResult> Verification([FromQuery] string email, [FromQuery] string code)
     {
         try
         {
             if (string.IsNullOrEmpty(email))
                 return BadRequest(new { error = "Email is required" });
 
-            var payload = new { email, orderId, orderTotal };
+            var payload = new { email, code };
             var response = await _notificationService.ProcessNotificationAsync(
-                "order-confirmation", "email", email, payload);
+                "verification", "email", email, payload);
 
             return Ok(response);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing order-confirmation email notification");
+            _logger.LogError(ex, "Error processing verification email notification");
             return StatusCode(500, new { error = "Failed to process notification" });
         }
     }
