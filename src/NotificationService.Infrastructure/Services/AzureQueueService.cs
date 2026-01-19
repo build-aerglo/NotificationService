@@ -19,7 +19,14 @@ public class AzureQueueService : IQueueService
 
     public async Task SendToQueueAsync(NotificationResponseDto notification)
     {
-        var message = JsonSerializer.Serialize(notification);
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = false
+        };
+    
+        var message = JsonSerializer.Serialize(notification, options);
         await _queueClient.SendMessageAsync(message);
     }
+
 }
