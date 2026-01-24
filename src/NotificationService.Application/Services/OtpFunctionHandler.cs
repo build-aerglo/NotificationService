@@ -63,7 +63,7 @@ public class OtpFunctionHandler(
         await passwordResetRequestRepository.DeleteByIdAsync(id);
 
         // Get expiry minutes from configuration
-        var expiryMinutes = configuration.GetValue<int>("PasswordResetSettings:ExpiryMinutes", 60);
+        var expiryMinutes = int.TryParse(configuration["PasswordResetSettings:ExpiryMinutes"], out var mins) ? mins : 60;
 
         // Create a new password reset request
         var passwordResetRequest = new PasswordResetRequest(

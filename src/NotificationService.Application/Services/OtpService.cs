@@ -21,7 +21,7 @@ public class OtpService(
         var code = GenerateSixDigitCode();
 
         // Get expiry minutes from configuration
-        var expiryMinutes = configuration.GetValue<int>("OtpSettings:ExpiryMinutes", 60);
+        var expiryMinutes = int.TryParse(configuration["OtpSettings:ExpiryMinutes"], out var mins) ? mins : 60;
 
         // Create new OTP
         var otp = new Otp(
