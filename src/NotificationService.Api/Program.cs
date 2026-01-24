@@ -18,9 +18,14 @@ builder.Services.AddOpenApi();
 
 // Register repositories (infrastructure layer)
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+builder.Services.AddScoped<IOtpRepository, OtpRepository>();
+builder.Services.AddScoped<IBusinessVerificationRepository, BusinessVerificationRepository>();
+builder.Services.AddScoped<IPasswordResetRequestRepository, PasswordResetRequestRepository>();
 
 // Register application services (application layer)
 builder.Services.AddScoped<INotificationService, NotificationService.Application.Services.NotificationService>();
+builder.Services.AddScoped<IOtpService, OtpService>();
+builder.Services.AddScoped<IOtpFunctionHandler, OtpFunctionHandler>();
 
 // Register Azure Queue Service
 builder.Services.AddScoped<IQueueService, AzureQueueService>();
