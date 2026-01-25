@@ -2,7 +2,8 @@ namespace NotificationService.Application.DTOs;
 
 public record CreateOtpRequestDto(
     string Id,
-    string Type
+    string Type,
+    string Purpose
 );
 
 public record ValidateOtpRequestDto(

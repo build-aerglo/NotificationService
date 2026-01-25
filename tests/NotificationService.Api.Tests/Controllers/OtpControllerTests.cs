@@ -32,6 +32,7 @@ public class OtpControllerTests
         // Arrange
         var id = "test@example.com";
         var type = "email";
+        var purpose = "emailVerification";
         var expectedResponse = new OtpResponseDto(
             id,
             "123456",
@@ -44,7 +45,7 @@ public class OtpControllerTests
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await _controller.CreateOtp(id, type);
+        var result = await _controller.CreateOtp(id, type, purpose);
 
         // Assert
         var okResult = result as OkObjectResult;
@@ -52,14 +53,14 @@ public class OtpControllerTests
         Assert.That(okResult!.StatusCode, Is.EqualTo(200));
 
         _mockOtpService.Verify(s => s.CreateOtpAsync(It.Is<CreateOtpRequestDto>(
-            r => r.Id == id && r.Type == type)), Times.Once);
+            r => r.Id == id && r.Type == type && r.Purpose == purpose)), Times.Once);
     }
 
     [Test]
     public async Task CreateOtp_ShouldReturnBadRequest_WhenIdIsEmpty()
     {
         // Act
-        var result = await _controller.CreateOtp("", "email");
+        var result = await _controller.CreateOtp("", "email", "emailVerification");
 
         // Assert
         var badRequestResult = result as BadRequestObjectResult;
@@ -71,7 +72,7 @@ public class OtpControllerTests
     public async Task CreateOtp_ShouldReturnBadRequest_WhenTypeIsEmpty()
     {
         // Act
-        var result = await _controller.CreateOtp("test@example.com", "");
+        var result = await _controller.CreateOtp("test@example.com", "", "emailVerification");
 
         // Assert
         var badRequestResult = result as BadRequestObjectResult;
@@ -83,7 +84,19 @@ public class OtpControllerTests
     public async Task CreateOtp_ShouldReturnBadRequest_WhenTypeIsInvalid()
     {
         // Act
-        var result = await _controller.CreateOtp("test@example.com", "invalid");
+        var result = await _controller.CreateOtp("test@example.com", "invalid", "emailVerification");
+
+        // Assert
+        var badRequestResult = result as BadRequestObjectResult;
+        Assert.That(badRequestResult, Is.Not.Null);
+        Assert.That(badRequestResult!.StatusCode, Is.EqualTo(400));
+    }
+
+    [Test]
+    public async Task CreateOtp_ShouldReturnBadRequest_WhenPurposeIsEmpty()
+    {
+        // Act
+        var result = await _controller.CreateOtp("test@example.com", "email", "");
 
         // Assert
         var badRequestResult = result as BadRequestObjectResult;
@@ -100,7 +113,7 @@ public class OtpControllerTests
             .ThrowsAsync(new Exception("Database error"));
 
         // Act
-        var result = await _controller.CreateOtp("test@example.com", "email");
+        var result = await _controller.CreateOtp("test@example.com", "email", "emailVerification");
 
         // Assert
         var statusCodeResult = result as ObjectResult;

@@ -21,7 +21,7 @@ public class OtpController : ControllerBase
     }
 
     [HttpPost("create")]
-    public async Task<IActionResult> CreateOtp([FromQuery] string id, [FromQuery] string type)
+    public async Task<IActionResult> CreateOtp([FromQuery] string id, [FromQuery] string type, [FromQuery] string purpose)
     {
         try
         {
@@ -34,7 +34,10 @@ public class OtpController : ControllerBase
             if (type != "email" && type != "sms")
                 return BadRequest(new { error = "Type must be 'email' or 'sms'" });
 
-            var request = new CreateOtpRequestDto(id, type);
+            if (string.IsNullOrEmpty(purpose))
+                return BadRequest(new { error = "Purpose is required" });
+
+            var request = new CreateOtpRequestDto(id, type, purpose);
             var response = await _otpService.CreateOtpAsync(request);
 
             return Ok(response);

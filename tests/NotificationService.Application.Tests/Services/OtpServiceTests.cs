@@ -15,6 +15,7 @@ public class OtpServiceTests
 {
     private Mock<IOtpRepository> _mockOtpRepository = null!;
     private Mock<IOtpFunctionHandler> _mockOtpFunctionHandler = null!;
+    private Mock<INotificationService> _mockNotificationService = null!;
     private Mock<IConfiguration> _mockConfiguration = null!;
     private OtpService _service = null!;
 
@@ -23,16 +24,26 @@ public class OtpServiceTests
     {
         _mockOtpRepository = new Mock<IOtpRepository>();
         _mockOtpFunctionHandler = new Mock<IOtpFunctionHandler>();
+        _mockNotificationService = new Mock<INotificationService>();
         _mockConfiguration = new Mock<IConfiguration>();
 
         // Setup configuration to return 60 minutes for OTP expiry
         _mockConfiguration
-            .Setup(c => c.GetSection("OtpSettings:ExpiryMinutes").Value)
+            .Setup(c => c["OtpSettings:ExpiryMinutes"])
             .Returns("60");
+
+        _mockNotificationService
+            .Setup(n => n.ProcessNotificationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<object>()))
+            .ReturnsAsync((NotificationResponseDto?)null);
 
         _service = new OtpService(
             _mockOtpRepository.Object,
             _mockOtpFunctionHandler.Object,
+            _mockNotificationService.Object,
             _mockConfiguration.Object);
     }
 
@@ -40,7 +51,7 @@ public class OtpServiceTests
     public async Task CreateOtpAsync_ShouldDeleteExistingOtps_AndCreateNew()
     {
         // Arrange
-        var request = new CreateOtpRequestDto("test@example.com", "email");
+        var request = new CreateOtpRequestDto("test@example.com", "email", "emailVerification");
 
         _mockOtpRepository
             .Setup(r => r.DeleteByIdAsync(request.Id))
@@ -67,7 +78,7 @@ public class OtpServiceTests
     public async Task CreateOtpAsync_ShouldGenerateSixDigitCode()
     {
         // Arrange
-        var request = new CreateOtpRequestDto("+1234567890", "sms");
+        var request = new CreateOtpRequestDto("+1234567890", "sms", "smsVerification");
 
         _mockOtpRepository
             .Setup(r => r.DeleteByIdAsync(request.Id))
@@ -85,6 +96,70 @@ public class OtpServiceTests
         Assert.That(int.TryParse(result.Code, out var code), Is.True);
         Assert.That(code, Is.GreaterThanOrEqualTo(100000));
         Assert.That(code, Is.LessThan(1000000));
+    }
+
+    [Test]
+    public async Task CreateOtpAsync_ShouldSendNotification_WithCorrectParameters()
+    {
+        // Arrange
+        var request = new CreateOtpRequestDto("test@example.com", "email", "emailVerification");
+
+        _mockOtpRepository
+            .Setup(r => r.DeleteByIdAsync(request.Id))
+            .Returns(Task.CompletedTask);
+
+        _mockOtpRepository
+            .Setup(r => r.AddAsync(It.IsAny<Otp>()))
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await _service.CreateOtpAsync(request);
+
+        // Assert
+        _mockNotificationService.Verify(n => n.ProcessNotificationAsync(
+            "otp",
+            "email",
+            "test@example.com",
+            It.IsAny<object>()), Times.Once);
+    }
+
+    [Test]
+    [TestCase("emailVerification", "Email Verification")]
+    [TestCase("smsVerification", "SMS Verification")]
+    [TestCase("resetPassword", "Password Reset")]
+    [TestCase("unknownPurpose", "Verification")]
+    public async Task CreateOtpAsync_ShouldSetCorrectTitle_BasedOnPurpose(string purpose, string expectedTitle)
+    {
+        // Arrange
+        var request = new CreateOtpRequestDto("test@example.com", "email", purpose);
+        object? capturedPayload = null;
+
+        _mockOtpRepository
+            .Setup(r => r.DeleteByIdAsync(request.Id))
+            .Returns(Task.CompletedTask);
+
+        _mockOtpRepository
+            .Setup(r => r.AddAsync(It.IsAny<Otp>()))
+            .Returns(Task.CompletedTask);
+
+        _mockNotificationService
+            .Setup(n => n.ProcessNotificationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<object>()))
+            .Callback<string, string, string, object>((_, _, _, payload) => capturedPayload = payload)
+            .ReturnsAsync((NotificationResponseDto?)null);
+
+        // Act
+        await _service.CreateOtpAsync(request);
+
+        // Assert
+        Assert.That(capturedPayload, Is.Not.Null);
+        var payloadType = capturedPayload!.GetType();
+        var titleProperty = payloadType.GetProperty("title");
+        Assert.That(titleProperty, Is.Not.Null);
+        Assert.That(titleProperty!.GetValue(capturedPayload), Is.EqualTo(expectedTitle));
     }
 
     [Test]

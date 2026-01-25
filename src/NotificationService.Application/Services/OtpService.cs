@@ -10,6 +10,7 @@ namespace NotificationService.Application.Services;
 public class OtpService(
     IOtpRepository otpRepository,
     IOtpFunctionHandler otpFunctionHandler,
+    INotificationService notificationService,
     IConfiguration configuration) : IOtpService
 {
     public async Task<OtpResponseDto> CreateOtpAsync(CreateOtpRequestDto request)
@@ -33,12 +34,34 @@ public class OtpService(
         // Save to database
         await otpRepository.AddAsync(otp);
 
+        // Get title based on purpose
+        var title = GetTitleForPurpose(request.Purpose);
+
+        // Create and push notification
+        await notificationService.ProcessNotificationAsync(
+            template: "otp",
+            channel: request.Type,
+            recipient: request.Id,
+            payload: new { code, title }
+        );
+
         return new OtpResponseDto(
             otp.Id,
             otp.Code,
             otp.CreatedAt,
             otp.ExpiresAt
         );
+    }
+
+    private static string GetTitleForPurpose(string purpose)
+    {
+        return purpose.ToLowerInvariant() switch
+        {
+            "emailverification" => "Email Verification",
+            "smsverification" => "SMS Verification",
+            "resetpassword" => "Password Reset",
+            _ => "Verification"
+        };
     }
 
     public async Task<ValidateOtpResponseDto> ValidateOtpAsync(ValidateOtpRequestDto request)
