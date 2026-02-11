@@ -23,3 +23,10 @@ public record NotificationResponseDto(
     object Payload,
     DateTime RequestedAt
 );
+
+public record CreateNotificationRequestDto(
+    string Template,
+    string Channel,
+    string Recipient,
+    object Payload
+);
