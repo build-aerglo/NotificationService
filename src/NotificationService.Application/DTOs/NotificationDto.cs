@@ -28,5 +28,5 @@ public record CreateNotificationRequestDto(
     string Template,
     string Channel,
     string Recipient,
-    object Payload
+    JsonElement Payload
 );

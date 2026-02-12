@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using NotificationService.Application.DTOs;
 using NotificationService.Application.Interfaces;
@@ -33,7 +34,7 @@ public class NotificationController : ControllerBase
             if (string.IsNullOrEmpty(request.Recipient))
                 return BadRequest(new { error = "Recipient is required" });
 
-            if (request.Payload == null)
+            if (request.Payload.ValueKind == JsonValueKind.Undefined)
                 return BadRequest(new { error = "Payload is required" });
 
             var response = await _notificationService.ProcessNotificationAsync(
