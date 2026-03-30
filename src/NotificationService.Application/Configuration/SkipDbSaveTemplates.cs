@@ -7,6 +7,6 @@ public static class SkipDbSaveTemplates
 {
     public static readonly HashSet<string> Templates =
     [
-        "registration"
+        "otp"
     ];
 }

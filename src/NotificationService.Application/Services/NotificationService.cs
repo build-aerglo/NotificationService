@@ -28,7 +28,7 @@ public class NotificationService(
 
         var skipDbSave = SkipDbSaveTemplates.Templates.Contains(template);
 
-        if (!skipDbSave)
+        if (skipDbSave)
         {
             // Insert into database
             await notificationRepository.AddAsync(notification);
