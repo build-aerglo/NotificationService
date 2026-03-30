@@ -1,4 +1,5 @@
-﻿using NotificationService.Application.DTOs;
+﻿using NotificationService.Application.Configuration;
+using NotificationService.Application.DTOs;
 using NotificationService.Application.Interfaces;
 using NotificationService.Domain.Entities;
 using NotificationService.Domain.Exceptions;
@@ -25,8 +26,13 @@ public class NotificationService(
         // Create notification
         var notification = new Notification(template, channel, recipient, payloadJson);
 
-        // Insert into database
-        await notificationRepository.AddAsync(notification);
+        var skipDbSave = SkipDbSaveTemplates.Templates.Contains(template);
+
+        if (skipDbSave)
+        {
+            // Insert into database
+            await notificationRepository.AddAsync(notification);
+        }
 
         // If SMS or Email, push to Azure Queue
         if (channel == "sms" || channel == "email")
@@ -43,8 +49,11 @@ public class NotificationService(
 
             await queueService.SendToQueueAsync(response);
 
-            // Update status to "pushed"
-            await notificationRepository.UpdateStatusAsync(notification.Id, "pushed");
+            if (!skipDbSave)
+            {
+                // Update status to "pushed"
+                await notificationRepository.UpdateStatusAsync(notification.Id, "pushed");
+            }
 
             return response;
         }
