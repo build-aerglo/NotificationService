@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using NotificationService.Application.Constants;
 using NotificationService.Application.DTOs;
 using NotificationService.Application.Interfaces;
 using NotificationService.Domain.Entities;
@@ -39,7 +40,7 @@ public class OtpService(
 
         // Create and push notification
         await notificationService.ProcessNotificationAsync(
-            template: "otp",
+            template: NotificationTemplates.Otp,
             channel: request.Type,
             recipient: request.Id,
             payload: new { code, title }
@@ -63,6 +64,7 @@ public class OtpService(
             _ => "Verification"
         };
     }
+
 
     public async Task<ValidateOtpResponseDto> ValidateOtpAsync(ValidateOtpRequestDto request)
     {
@@ -109,7 +111,7 @@ public class OtpService(
 
     private static string GenerateSixDigitCode()
     {
-        var random = new Random();
-        return random.Next(100000, 999999).ToString();
+        // RandomNumberGenerator is cryptographically secure — do not use System.Random for OTPs
+        return System.Security.Cryptography.RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
     }
 }

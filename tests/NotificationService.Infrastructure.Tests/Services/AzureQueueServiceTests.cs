@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Configuration;
-using Moq;
 using NotificationService.Application.DTOs;
 using NotificationService.Infrastructure.Services;
 using NUnit.Framework;
@@ -9,33 +8,36 @@ namespace NotificationService.Infrastructure.Tests.Services;
 [TestFixture]
 public class AzureQueueServiceTests
 {
-    private Mock<IConfiguration> _mockConfiguration = null!;
+    private IConfiguration _configuration = null!;
     private string _testConnectionString = null!;
 
     [SetUp]
     public void Setup()
     {
-        _mockConfiguration = new Mock<IConfiguration>();
         _testConnectionString = "UseDevelopmentStorage=true"; // Local Azure Storage Emulator
 
-        var mockConnectionSection = new Mock<IConfigurationSection>();
-        mockConnectionSection.Setup(x => x.Value).Returns(_testConnectionString);
-
-        _mockConfiguration
-            .Setup(x => x.GetConnectionString("AzureQueueStorage"))
-            .Returns(_testConnectionString);
+        // Use a real IConfiguration backed by in-memory values — avoids mocking extension methods
+        _configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:AzureQueueStorage"] = _testConnectionString
+            })
+            .Build();
     }
 
     [Test]
     public void Constructor_ShouldThrowException_WhenConnectionStringIsNull()
     {
         // Arrange
-        _mockConfiguration
-            .Setup(x => x.GetConnectionString("AzureQueueStorage"))
-            .Returns((string?)null);
+        var emptyConfig = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:AzureQueueStorage"] = null
+            })
+            .Build();
 
         // Act & Assert
-        Assert.Throws<NullReferenceException>(() => new AzureQueueService(_mockConfiguration.Object));
+        Assert.Throws<ArgumentNullException>(() => new AzureQueueService(emptyConfig));
     }
 
     [Test]
@@ -80,8 +82,14 @@ public class AzureQueueServiceTests
             requestedAt
         );
 
-        // Act
-        var json = System.Text.Json.JsonSerializer.Serialize(response);
+        // Use the same serializer options as AzureQueueService so assertions reflect
+        // the actual JSON that lands on the queue.
+        var options = new System.Text.Json.JsonSerializerOptions
+        {
+            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+        var json = System.Text.Json.JsonSerializer.Serialize(response, options);
 
         // Assert
         Assert.That(json, Does.Contain("verification"));

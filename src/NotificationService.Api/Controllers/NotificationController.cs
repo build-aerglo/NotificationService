@@ -1,5 +1,7 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NotificationService.Application.DTOs;
 using NotificationService.Application.Interfaces;
 
@@ -7,6 +9,8 @@ namespace NotificationService.Api.Controllers;
 
 [ApiController]
 [Route("api/notification")]
+[Authorize]
+[EnableRateLimiting("general")]
 public class NotificationController : ControllerBase
 {
     private readonly INotificationService _notificationService;
@@ -25,17 +29,21 @@ public class NotificationController : ControllerBase
     {
         try
         {
-            if (string.IsNullOrEmpty(request.Template))
+            if (string.IsNullOrWhiteSpace(request.Template))
                 return BadRequest(new { error = "Template is required" });
 
-            if (string.IsNullOrEmpty(request.Channel))
+            if (string.IsNullOrWhiteSpace(request.Channel))
                 return BadRequest(new { error = "Channel is required" });
 
-            if (string.IsNullOrEmpty(request.Recipient))
+            if (string.IsNullOrWhiteSpace(request.Recipient))
                 return BadRequest(new { error = "Recipient is required" });
 
             if (request.Payload.ValueKind == JsonValueKind.Undefined)
                 return BadRequest(new { error = "Payload is required" });
+
+            _logger.LogInformation(
+                "Processing notification. Template: {Template}, Channel: {Channel}. TraceId: {TraceId}",
+                request.Template, request.Channel, HttpContext?.TraceIdentifier);
 
             var response = await _notificationService.ProcessNotificationAsync(
                 request.Template, request.Channel, request.Recipient, request.Payload);
@@ -44,7 +52,9 @@ public class NotificationController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing notification");
+            _logger.LogError(ex,
+                "Error processing notification. Template: {Template}, Channel: {Channel}. TraceId: {TraceId}",
+                request.Template, request.Channel, HttpContext?.TraceIdentifier);
             return StatusCode(500, new { error = "Failed to process notification" });
         }
     }

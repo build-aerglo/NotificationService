@@ -3,3 +3,10 @@ obj/
 /packages/
 riderModule.iml
 /_ReSharper.Caches/
+
+# Secrets — never commit these; use dotnet user-secrets or environment variables
+**/appsettings.Production.json
+**/appsettings.Staging.json
+**/secrets.json
+**/*.pfx
+**/*.key
