@@ -30,13 +30,17 @@ builder.Services.AddScoped<IOtpFunctionHandler, OtpFunctionHandler>();
 // Register Azure Queue Service
 builder.Services.AddScoped<IQueueService, AzureQueueService>();
 
-// Optional: CORS (if calling from frontend)
+var allowedOrigins = builder.Configuration
+    .GetSection("AllowedOrigins")
+    .Get<string[]>() ?? [];
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin()
+    options.AddPolicy("AllowFrontend", policy =>
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyMethod()
-              .AllowAnyHeader());
+              .AllowAnyHeader()
+              .AllowCredentials());
 });
 
 var app = builder.Build();
@@ -60,7 +64,7 @@ if (app.Environment.IsDevelopment())
 // app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+app.UseCors("AllowFrontend");
 
 // Enable attribute-routed controllers
 app.MapControllers();
