@@ -4,3 +4,5 @@ obj/
 riderModule.iml
 /_ReSharper.Caches/
 src/NotificationService.Api/appsettings.Development.json
+src/NotificationService.Api/appsettings.Development.json
+src/NotificationService.Api/appsettings.Development.json
