@@ -10,3 +10,6 @@ riderModule.iml
 **/secrets.json
 **/*.pfx
 **/*.key
+src/NotificationService.Api/appsettings.Development.json
+src/NotificationService.Api/appsettings.Development.json
+src/NotificationService.Api/appsettings.Development.json
