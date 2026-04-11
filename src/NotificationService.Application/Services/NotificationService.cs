@@ -1,4 +1,5 @@
 ﻿using NotificationService.Application.Configuration;
+using NotificationService.Application.Constants;
 using NotificationService.Application.DTOs;
 using NotificationService.Application.Interfaces;
 using NotificationService.Domain.Entities;
@@ -28,14 +29,13 @@ public class NotificationService(
 
         var skipDbSave = SkipDbSaveTemplates.Templates.Contains(template);
 
-        if (skipDbSave)
+        if (!skipDbSave)
         {
-            // Insert into database
             await notificationRepository.AddAsync(notification);
         }
 
         // If SMS or Email, push to Azure Queue
-        if (channel == "sms" || channel == "email")
+        if (channel == NotificationChannels.Sms || channel == NotificationChannels.Email)
         {
             var response = new NotificationResponseDto(
                 notification.Id,
