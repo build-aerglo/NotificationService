@@ -17,6 +17,8 @@
       <ProjectReference Include="..\NotificationService.Application\NotificationService.Application.csproj" />
       <ProjectReference Include="..\NotificationService.Domain\NotificationService.Domain.csproj" />
       <ProjectReference Include="..\NotificationService.Infrastructure\NotificationService.Infrastructure.csproj" />
+      <PackageReference Include="Azure.Identity" Version="1.13.2" />
+      <PackageReference Include="Microsoft.Azure.AppConfiguration.AspNetCore" Version="8.0.0" />
     </ItemGroup>
 
     <ItemGroup>

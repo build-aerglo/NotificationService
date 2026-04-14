@@ -9,6 +9,33 @@ using NotificationService.Infrastructure.Repositories;
 using NotificationService.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+var appConfigEndpoint = builder.Configuration["AzureAppConfiguration:Endpoint"];
+
+if (!string.IsNullOrWhiteSpace(appConfigEndpoint))
+{
+    try
+    {
+        builder.Configuration.AddAzureAppConfiguration(options =>
+        {
+            options
+                .Connect(new Uri(appConfigEndpoint), new Azure.Identity.DefaultAzureCredential())
+                .ConfigureKeyVault(kv =>
+                {
+                    kv.SetCredential(new Azure.Identity.DefaultAzureCredential());
+                });
+        });
+        builder.Configuration.AddEnvironmentVariables();
+        Console.WriteLine($"[AppConfig] Connected: {appConfigEndpoint}");
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"[AppConfig] FAILED: {ex.GetType().Name}: {ex.Message}");
+    }
+}
+else
+{
+    Console.WriteLine("[AppConfig] Endpoint not set — using appsettings.json (local dev)");
+}
 
 // -----------------------------------------------------------------------
 // 1. Validate required configuration at startup — fail fast, not at runtime
