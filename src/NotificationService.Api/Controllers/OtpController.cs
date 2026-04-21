@@ -27,6 +27,7 @@ public partial class OtpController : ControllerBase
         _logger = logger;
     }
 
+    [AllowAnonymous]
     [HttpPost("create")]
     public async Task<IActionResult> CreateOtp(
         [FromQuery] string id,
@@ -63,6 +64,7 @@ public partial class OtpController : ControllerBase
         }
     }
 
+    [AllowAnonymous]
     [HttpPost("validate")]
     public async Task<IActionResult> ValidateOtp(
         [FromQuery] string id,
