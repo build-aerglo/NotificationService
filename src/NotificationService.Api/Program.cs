@@ -1,7 +1,9 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using NotificationService.Api.Authentication;
+using NotificationService.Api.Hubs;
 using NotificationService.Api.Middleware;
+using NotificationService.Api.Services;
 using NotificationService.Application.Interfaces;
 using NotificationService.Application.Services;
 using NotificationService.Domain.Repositories;
@@ -57,9 +59,10 @@ if (string.IsNullOrWhiteSpace(apiKey))
         "ApiKey is not configured. Set it via environment variable 'ApiKey'.");
 
 // -----------------------------------------------------------------------
-// 2. Controllers
+// 2. Controllers + SignalR
 // -----------------------------------------------------------------------
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 
 // -----------------------------------------------------------------------
 // 3. OpenAPI / Swagger
@@ -128,8 +131,9 @@ builder.Services.AddCors(options =>
         else if (allowedOrigins.Length > 0)
         {
             policy.WithOrigins(allowedOrigins)
-                  .WithMethods("GET", "POST", "DELETE")
-                  .WithHeaders("Content-Type", ApiKeyAuthenticationConstants.HeaderName);
+                  .WithMethods("GET", "POST", "DELETE", "PUT")
+                  .AllowAnyHeader()
+                  .AllowCredentials();
         }
         // If production and no origins configured — no origin is allowed (secure by default)
     });
@@ -152,6 +156,7 @@ builder.Services.AddScoped<INotificationService, NotificationService.Application
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<IOtpFunctionHandler, OtpFunctionHandler>();
 builder.Services.AddScoped<IQueueService, AzureQueueService>();
+builder.Services.AddScoped<IInAppPushService, SignalRInAppPushService>();
 
 // -----------------------------------------------------------------------
 // 9. Build
@@ -197,6 +202,7 @@ app.UseAuthorization();
 
 app.MapHealthChecks("/health").AllowAnonymous();
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications").AllowAnonymous();
 
 app.Run();
 

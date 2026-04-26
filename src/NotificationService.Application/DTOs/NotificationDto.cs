@@ -30,3 +30,22 @@ public record CreateNotificationRequestDto(
     string Recipient,
     JsonElement Payload
 );
+
+public record InAppNotificationDto(
+    Guid Id,
+    string? Template,
+    JsonDocument? Payload,
+    DateTime RequestedAt
+);
+
+public record PagedResult<T>(
+    IEnumerable<T> Items,
+    int Page,
+    int PageSize,
+    int Total,
+    bool HasNext
+);
+
+public record CloseNotificationRequestDto(string RecipientId);
+
+public record ClearNotificationsRequestDto(string RecipientId);
